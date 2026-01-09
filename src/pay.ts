@@ -3,13 +3,18 @@ import assert from 'node:assert';
 import { error } from 'node:console';
 import * as utils from './utils.ts';
 import { clickTheStupidInitialPopup } from './utils.ts';
+import { env } from './envVars.ts';
+import { CreditCard } from './processCards.ts';
 let Page: import('playwright').Page;
 
-export const payWithInfo = async (page: typeof Page, cardNumber: string, cvv: string, zipCode: string, expirationDate: string, amount: number, assertFee: number | null = null) => {
+export const payWithInfo = async (page: typeof Page, card: CreditCard, amount: number, assertFee: number | null = null) => {
   /*
   Pays tuition with a single gift card.
   */
 
+  // Format expiration date as MM/YY
+  const expirationDate = `${card.expMonth.padStart(2, '0')}/${card.expYear}`;
+  
   // Assert that expiration data is in the form NN/NN or N/NN
   const expDateRegex = /^(0?[1-9]|1[0-2])\/\d{2}$/;
   assert(expDateRegex.test(expirationDate), `Expiration date ${expirationDate} is not in the form MM/YY`);
@@ -25,7 +30,7 @@ export const payWithInfo = async (page: typeof Page, cardNumber: string, cvv: st
   await page.getByRole('option', { name: 'New credit or debit card A 2.' }).click();
 
   // Step 2: Fill in card details
-  await fillCardDetails(page, cardNumber, cvv, zipCode, unifiedExpirationDate);
+  await fillCardDetails(page, card.number, card.cvv, card.zip, unifiedExpirationDate);
 
   await page.getByRole('button', { name: 'Continue' }).click();
 
@@ -46,8 +51,8 @@ export const payWithInfo = async (page: typeof Page, cardNumber: string, cvv: st
   await page.locator('bb-smart-pay-acknowledgment').getByRole('button', { name: 'Continue' }).click();
 
   // Last step: Review
-  const totalArray = await page.getByLabel('Total').click();
-  const totalString = (await page.getByLabel('Total').textContent())?.replace('Total $', '').trim();
+  const totalString = (await page.getByLabel('Total').textContent())?.replace('$', '').trim();
+  console.log(totalString);
   if (totalString) {
     const total = parseFloat(totalString);
     console.log(`Total charge: $${total.toFixed(2)}`);
@@ -59,7 +64,14 @@ export const payWithInfo = async (page: typeof Page, cardNumber: string, cvv: st
   // Submit
   await page.getByRole('button', { name: 'Pay $' }).click();
 
-  assert((await page.title()).includes('Overview'), 'Did not return to Overview page after payment');
+  assert(await page.getByText('Thank you for your payment').isVisible);
+
+  const remainingBalString: string | null = await page.getByText('You have a remaining balance of $').textContent();
+  assert (remainingBalString !== null, 'Could not find remaining balance text after payment');
+  const remainingBalance: number = remainingBalString ? parseFloat(remainingBalString.replace('You have a remaining balance of $', '').trim()) : 0;
+  console.log(`Remaining balance after payment: $${remainingBalance.toFixed(2)}`);
+
+  return remainingBalance;
 };
 
 const fillCardDetails = async (page: typeof Page, cardNumber: string, cvv: string, zipCode: string, unifiedExpirationDate: string) => {
@@ -71,6 +83,9 @@ const fillCardDetails = async (page: typeof Page, cardNumber: string, cvv: strin
   await page.getByRole('textbox', { name: 'Security code' }).fill(cvv);
   await page.getByRole('textbox', { name: 'Zip/Postal code' }).fill(zipCode);
 }
+
+
+// Utils for payment calculations
 
 export const getRemainingBalance = async (page: typeof Page): Promise<number> => {
   /*
@@ -111,9 +126,6 @@ export const determineTransactionFeePercent = async (page: typeof Page): Promise
   await page.waitForSelector('text=applies to credit and debit card payments');
   const feeArray = await page.getByText('applies to credit and debit card payments').allTextContents();
 
-
-  console.log(feeArray);
-
   const feeMatch = feeArray[0].match(/(\d.\d\d)%/);
   if (feeMatch) {
     const feePercent = parseFloat(feeMatch[1]);
@@ -132,3 +144,34 @@ export const determineAmountToPayPerCard = (totalAmount: number, transactionFeeP
   const amountToPay = totalAmount / (1 + (transactionFeePercent / 100));
   return parseFloat(amountToPay.toFixed(2));
 }
+
+export const payManually = async (page: typeof Page, amount: number): Promise<number> => {
+  /* Allows manual entry of card information into the terminal, then fills it in automatically. Returns the new balance. */
+  console.log('Please enter card information:');
+  const readline = await import('node:readline');
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+  });
+
+  const question = (str: string): Promise<string> => {
+    return new Promise((resolve) => {
+      rl.question(str, (answer) => {
+        resolve(answer);
+      });
+    });
+  };
+
+  const cardNumber = await question('Card Number: ');
+  const cvv = await question('CVV: ');
+  const expirationDate = await question('Expiration Date (MM/YY): ');
+
+  rl.close();
+  
+  // Parse expiration date to get month and year
+  const [expMonth, expYear] = expirationDate.split('/');
+  const card = new CreditCard(cardNumber, expMonth, expYear, cvv);
+  
+  await payWithInfo(page, card, amount, parseFloat(env.AMOUNT_PER_CARD) - amount);
+  return await getRemainingBalance(page);
+};

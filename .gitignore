@@ -27,3 +27,6 @@ Thumbs.db
 playwright/.auth
 
 .vscode/
+
+# The cards themselves
+cards.csv

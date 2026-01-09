@@ -5,7 +5,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node --import tsx --test test/**/*.test.ts",
+    "test:processCards": "node --import tsx --test test/processCards.test.ts"
   },
   "keywords": [],
   "author": "",
@@ -16,6 +17,7 @@
     "@types/node": "^24.3.0",
     "playwright": "^1.54.2",
     "ts-node": "^10.9.2",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.2"
   },
   "dependencies": {

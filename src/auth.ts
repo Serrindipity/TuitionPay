@@ -28,6 +28,6 @@ export const authenticate = async (page: typeof Page) => {
   await page1.waitForLoadState('domcontentloaded');
   // await page1.goto('https://commerce.cashnet.com/cashneti/static/epayment/ucbpay/overview');
   // await page.context().storageState({ path: authFile });
-  console.log('Authenticated and navigated to Make a Payment page.');
+  console.log('Authenticated');
   return page1;
 };

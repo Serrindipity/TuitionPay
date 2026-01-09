@@ -19,6 +19,7 @@ type EnvVars = {
   USERNAME: string;
   PASSWORD: string;
   HEADLESS: boolean;
+  TARGET_PAYMENT?: number;
 };
 
 function getEnvVars(): EnvVars {
@@ -34,6 +35,9 @@ function getEnvVars(): EnvVars {
   }
   if (process.env.HEADLESS !== undefined) {
     env.HEADLESS = process.env.HEADLESS === 'true';
+  }
+  if (process.env.TARGET_PAYMENT) {
+    env.TARGET_PAYMENT = parseFloat(process.env.TARGET_PAYMENT);
   }
   return env as EnvVars;
 }
