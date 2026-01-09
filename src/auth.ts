@@ -1,26 +1,33 @@
 // @ts-check
-// Logs into CalCentral
+// Logs into CalCentral and navigates to the "Make a Payment" page.
 
-import path from 'path';
+// import path from 'node:path';
 import { env } from './envVars.ts';
+import { clickTheStupidInitialPopup } from './utils.ts';
+let Page: import('playwright').Page;
 
 
-
-export const authenticate = async (browser, page) => {
-//   const authFile = path.join(__dirname, '../playwright/.auth/user.json');
-  // Perform authentication steps. Replace these actions with your own.
+export const authenticate = async (page: typeof Page) => {
+  /*
+  Logs into the Portal and gets to the "Make a Payment" page. Returns that page.
+  */
+  // const authFile = path.join(__dirname, '../playwright/.auth/user.json');
   await page.goto(env.PORTAL_URL);
-  await page.getByLabel('username-input').fill(env.USERNAME);
-  await page.getByLabel('password_input').fill(env.PASSWORD);
-  await page.getByRole('button', { name: 'Sign in' }).click();
-  // Wait until the page receives the cookies.
-  //
-  // Sometimes login flow sets cookies in the process of several redirects.
-  // Wait for the final URL to ensure that the cookies are actually set.
-  // Alternatively, you can wait until the page reaches a state where all cookies are set.
-//   await expect(page.getByRole('button', { name: 'View profile and more' })).toBeVisible();
+  await page.getByTestId('sign-in').click();
+  await page.getByRole('textbox', { name: 'CalNet ID:*' }).click();
+  await page.getByRole('textbox', { name: 'CalNet ID:*' }).fill(env.USERNAME);
+  await page.getByRole('textbox', { name: 'Passphrase:*' }).click();
+  await page.getByRole('textbox', { name: 'Passphrase:*' }).fill(env.PASSWORD);
+  await page.getByRole('button', { name: 'Sign In' }).click();
+  await page.getByRole('button', { name: 'Yes, this is my device' }).click();
 
-  // End of authentication steps.
-
+  await page.getByRole('link', { name: ' My Finances' }).click();
+  const page1Promise = page.waitForEvent('popup');
+  await page.getByRole('link', { name: 'Make Payment , this link' }).click();
+  const page1 = await page1Promise;
+  await page1.waitForLoadState('domcontentloaded');
+  // await page1.goto('https://commerce.cashnet.com/cashneti/static/epayment/ucbpay/overview');
   // await page.context().storageState({ path: authFile });
+  console.log('Authenticated and navigated to Make a Payment page.');
+  return page1;
 };
