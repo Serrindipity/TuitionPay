@@ -27,6 +27,8 @@ export const payWithInfo = async (page: typeof Page, card: CreditCard, amount: n
   await page.getByRole('textbox', { name: '$' }).fill('$' + amount.toString());
 
   await page.getByRole('button', { name: 'Checkout' }).click();
+  await utils.acknowledgeWarningIfPresent(page);
+
   await page.getByRole('option', { name: 'New credit or debit card A 2.' }).click();
 
   // Step 2: Fill in card details
@@ -98,7 +100,8 @@ export const getRemainingBalance = async (page: typeof Page): Promise<number> =>
   console.log('Retrieving remaining balance...');
 
   // Locate balance indicator
-  const balanceString: string = (await page.locator('bb-overview-header').getByText('$').allTextContents())[0];
+  await page.waitForLoadState('networkidle');
+  const balanceString: string = await page.locator('bb-overview-header').getByText('$').textContent() || '';
   const balance: number = parseFloat(balanceString.replace('Balance: $', '').replace(',', '').trim());
   console.log(`Remaining balance: $${balance.toFixed(2)}`);
   return balance;

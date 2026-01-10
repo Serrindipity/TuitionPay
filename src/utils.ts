@@ -29,3 +29,15 @@ export const clickTheStupidInitialPopup = async (page: typeof Page) => {
         console.log('No initial popup to close.');
     }
 }
+
+export const acknowledgeWarningIfPresent = async (page: typeof Page) => {
+    /*
+    Acknowledges any warning dialog that may appear during payment.
+    */
+    const warningDialog = await page.getByText('Warning') || null;
+    if (warningDialog) {
+        await page.getByRole('checkbox', { name: 'I agree to proceed with this' }).click();
+        await page.getByRole('button', { name: 'Continue' }).click();
+        console.log('Acknowledged warning dialog.');
+    }
+}
